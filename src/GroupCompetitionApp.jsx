@@ -231,12 +231,29 @@ export default function FirebaseCompetitionApp() {
   }
 };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError('');
 
+    try {
+      const adminSnapshot = await getDocs(collection(db, 'admins'));
+      const adminDoc = adminSnapshot.docs.find(doc => {
+        const data = doc.data();
+        return data.username === loginForm.username.trim() && data.password === loginForm.password.trim();
+      });
+
+      if (adminDoc) {
+        setCurrentUser({ id: adminDoc.id, ...adminDoc.data() });
+        setCurrentPage('admin');
+        setLoginForm({ username: '', password: '' });
+        return;
+      }
+    } catch (err) {
+      // admins collection may be restricted — fall through to user check
+    }
+
     const user = users.find(u =>
-      u.username === loginForm.username &&
-      u.password === loginForm.password
+      u.username === loginForm.username.trim() &&
+      u.password === loginForm.password.trim()
     );
 
     if (user) {
@@ -244,7 +261,7 @@ export default function FirebaseCompetitionApp() {
       setCurrentPage('dashboard');
       setLoginForm({ username: '', password: '' });
     } else {
-      setError('Invalid username or password');
+      setError('إسم المستخدم أو كلمة المرور غير صحيحة');
     }
   };
 
@@ -369,7 +386,7 @@ export default function FirebaseCompetitionApp() {
             <input
               type="text"
               value={loginForm.username}
-              onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+              onChange={(e) => setLoginForm(prev => ({ ...prev, username: e.target.value }))}
               onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
               style={styles.input}
               placeholder="أدخل إسم المستخدم"
@@ -381,7 +398,7 @@ export default function FirebaseCompetitionApp() {
             <input
               type="password"
               value={loginForm.password}
-              onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+              onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
               onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
               style={styles.input}
               placeholder="أدخل كلمة المرور"
