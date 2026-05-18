@@ -231,8 +231,25 @@ export default function FirebaseCompetitionApp() {
   }
 };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError('');
+
+    try {
+      const adminSnapshot = await getDocs(collection(db, 'admins'));
+      const adminDoc = adminSnapshot.docs.find(doc => {
+        const data = doc.data();
+        return data.username === loginForm.username && data.password === loginForm.password;
+      });
+
+      if (adminDoc) {
+        setCurrentUser({ id: adminDoc.id, ...adminDoc.data() });
+        setCurrentPage('admin');
+        setLoginForm({ username: '', password: '' });
+        return;
+      }
+    } catch (err) {
+      // admins collection may be restricted — fall through to user check
+    }
 
     const user = users.find(u =>
       u.username === loginForm.username &&
@@ -244,7 +261,7 @@ export default function FirebaseCompetitionApp() {
       setCurrentPage('dashboard');
       setLoginForm({ username: '', password: '' });
     } else {
-      setError('Invalid username or password');
+      setError('إسم المستخدم أو كلمة المرور غير صحيحة');
     }
   };
 
