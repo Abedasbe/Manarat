@@ -103,7 +103,8 @@ const styles = {
     alignItems: 'center',
     fontSize: '14px',
     fontWeight: '600',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    minWidth: '150px'
   },
   leaderboardItem: {
     display: 'flex',
@@ -127,7 +128,6 @@ export default function FirebaseCompetitionApp() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Load users and activities from Firebase
   useEffect(() => {
     loadData();
   }, []);
@@ -136,7 +136,6 @@ export default function FirebaseCompetitionApp() {
     try {
       setLoading(true);
 
-      // Load users
       const usersSnapshot = await getDocs(collection(db, 'users'));
       const usersData = usersSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -144,7 +143,6 @@ export default function FirebaseCompetitionApp() {
       }));
       setUsers(usersData);
 
-      // Load activities
       const activitiesSnapshot = await getDocs(collection(db, 'activities'));
       const activitiesData = activitiesSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -189,47 +187,46 @@ export default function FirebaseCompetitionApp() {
   };
 
   const handleSignup = async () => {
-  setError('');
-  setSuccess('');
+    setError('');
+    setSuccess('');
 
-  if (!signupForm.username || !signupForm.password || !signupForm.group) {
-    setError('Please fill in all fields');
-    return;
-  }
+    if (!signupForm.username || !signupForm.password || !signupForm.group) {
+      setError('الرجاء ملء جميع الحقول');
+      return;
+    }
 
-  // Password validation - at least 8 characters
-  if (signupForm.password.length < 8) {
-    setError('Password must be at least 8 characters long');
-    return;
-  }
+    if (signupForm.password.length < 8) {
+      setError('يجب أن تكون كلمة المرور 8 خانات على الأقل');
+      return;
+    }
 
-  if (users.find(u => u.username === signupForm.username)) {
-    setError('Username already exists');
-    return;
-  }
+    if (users.find(u => u.username === signupForm.username)) {
+      setError('إسم المستخدم موجود مسبقًا');
+      return;
+    }
 
-  try {
-    const newUser = {
-      username: signupForm.username,
-      password: signupForm.password,
-      group: signupForm.group,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const newUser = {
+        username: signupForm.username,
+        password: signupForm.password,
+        group: signupForm.group,
+        createdAt: new Date().toISOString()
+      };
 
-    const docRef = await addDoc(collection(db, 'users'), newUser);
+      const docRef = await addDoc(collection(db, 'users'), newUser);
 
-    setUsers([...users, { id: docRef.id, ...newUser }]);
-    setSignupForm({ username: '', password: '', group: '' });
-    setSuccess('Account created successfully!');
-    setTimeout(() => {
-      setCurrentPage('login');
-      setSuccess('');
-    }, 1500);
-  } catch (err) {
-    console.error('Error creating account:', err);
-    setError('Failed to create account. Please try again.');
-  }
-};
+      setUsers([...users, { id: docRef.id, ...newUser }]);
+      setSignupForm({ username: '', password: '', group: '' });
+      setSuccess('تم إنشاء الحساب بنجاح!');
+      setTimeout(() => {
+        setCurrentPage('login');
+        setSuccess('');
+      }, 1500);
+    } catch (err) {
+      console.error('Error creating account:', err);
+      setError('فشل إنشاء الحساب. يرجى المحاولة مرة أخرى.');
+    }
+  };
 
   const handleLogin = () => {
     setError('');
@@ -244,13 +241,13 @@ export default function FirebaseCompetitionApp() {
       setCurrentPage('dashboard');
       setLoginForm({ username: '', password: '' });
     } else {
-      setError('Invalid username or password');
+      setError('إسم المستخدم أو كلمة المرور غير صحيحة');
     }
   };
 
   const handleTask = async (taskType) => {
     if (hasRecordedTaskToday()) {
-      setError('You have already recorded your task for today');
+      setError('لقد سجلت وردك اليوم بالفعل');
       return;
     }
 
@@ -272,17 +269,17 @@ export default function FirebaseCompetitionApp() {
 
       setActivities([...activities, { id: docRef.id, ...activity }]);
       setError('');
-      setSuccess('Task recorded successfully!');
+      setSuccess('تم تسجيل الورد بنجاح!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error recording task:', err);
-      setError('Failed to record task. Please try again.');
+      setError('فشل تسجيل الورد. يرجى المحاولة مرة أخرى.');
     }
   };
 
   const handleMeeting = async (attended) => {
     if (hasRecordedMeetingThisWeek()) {
-      setError('You have already recorded your meeting for this week');
+      setError('لقد سجلت اللقاء الأسبوعي بالفعل');
       return;
     }
 
@@ -304,51 +301,86 @@ export default function FirebaseCompetitionApp() {
 
       setActivities([...activities, { id: docRef.id, ...activity }]);
       setError('');
-      setSuccess('Meeting recorded successfully!');
+      setSuccess('تم تسجيل اللقاء بنجاح!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error recording meeting:', err);
-      setError('Failed to record meeting. Please try again.');
+      setError('فشل تسجيل اللقاء. يرجى المحاولة مرة أخرى.');
     }
   };
 
   const getGroupScores = () => {
-    const scores = {};
+  const scores = {};
 
-    GROUPS.forEach(group => {
-      scores[group] = activities
-        .filter(a => a.group === group)
-        .reduce((sum, a) => sum + a.points, 0);
-    });
+  GROUPS.forEach(group => {
+    const groupMembers = users.filter(u => u.group === group).length;
+    const groupActivities = activities.filter(a => a.group === group);
 
-    return Object.entries(scores)
-      .sort((a, b) => b[1] - a[1])
-      .map(([group, score], index) => ({ group, score, rank: index + 1 }));
-  };
+    const taskPoints = groupActivities
+      .filter(a => a.type === 'task')
+      .reduce((sum, a) => sum + a.points, 0);
+
+    const meetingPoints = groupActivities
+      .filter(a => a.type === 'meeting')
+      .reduce((sum, a) => sum + a.points, 0);
+
+    const totalPoints = taskPoints + meetingPoints;
+
+    scores[group] = {
+      total: totalPoints,
+      taskPoints: taskPoints,
+      meetingPoints: meetingPoints,
+      members: groupMembers,
+      average: groupMembers > 0 ? Math.round(totalPoints / groupMembers) : 0
+    };
+  });
+
+  return Object.entries(scores)
+    .sort((a, b) => b[1].average - a[1].average)
+    .map(([group, data], index) => ({
+      group,
+      total: data.total,
+      taskPoints: data.taskPoints,
+      meetingPoints: data.meetingPoints,
+      members: data.members,
+      average: data.average,
+      rank: index + 1
+    }));
+};
 
   const getGroupMemberScores = () => {
-    if (!currentUser) return [];
+  if (!currentUser) return [];
 
-    const groupUsers = users.filter(u => u.group === currentUser.group);
-    const scores = groupUsers.map(user => {
-      const totalPoints = activities
-        .filter(a => a.userId === user.id)
-        .reduce((sum, a) => sum + a.points, 0);
+  const groupUsers = users.filter(u => u.group === currentUser.group);
+  const scores = groupUsers.map(user => {
+    const userActivities = activities.filter(a => a.userId === user.id);
 
-      return {
-        username: user.username,
-        points: totalPoints
-      };
-    });
+    const taskPoints = userActivities
+      .filter(a => a.type === 'task')
+      .reduce((sum, a) => sum + a.points, 0);
 
-    return scores.sort((a, b) => b.points - a.points);
-  };
+    const meetingPoints = userActivities
+      .filter(a => a.type === 'meeting')
+      .reduce((sum, a) => sum + a.points, 0);
+
+    const totalPoints = taskPoints + meetingPoints;
+
+    return {
+      username: user.username,
+      points: totalPoints,
+      taskPoints: taskPoints,
+      meetingPoints: meetingPoints
+    };
+  });
+
+  return scores.sort((a, b) => b.points - a.points);
+};
 
   if (loading) {
     return (
       <div style={{ ...styles.container, background: '#667eea' }}>
         <div style={{ textAlign: 'center', color: 'white' }}>
-          <div style={{ fontSize: '24px', marginBottom: '20px' }}>Loading...</div>
+          <div style={{ fontSize: '24px', marginBottom: '20px' }}>جارٍ التحميل...</div>
           <Trophy size={48} color="white" />
         </div>
       </div>
@@ -429,21 +461,23 @@ export default function FirebaseCompetitionApp() {
               value={signupForm.username}
               onChange={(e) => setSignupForm({ ...signupForm, username: e.target.value })}
               style={styles.input}
+              placeholder="إختر إسم المستخدم"
             />
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontWeight: '500', marginBottom: '5px' }}>إختر كلمة المرور (على الأقل 8 خانات)</label>
+            <label style={{ display: 'block', fontWeight: '500', marginBottom: '5px' }}>كلمة المرور (على الأقل 8 خانات)</label>
             <input
               type="password"
               value={signupForm.password}
               onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
               style={styles.input}
+              placeholder="إختر كلمة المرور"
             />
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontWeight: '500', marginBottom: '5px' }}>إختر منارتك </label>
+            <label style={{ display: 'block', fontWeight: '500', marginBottom: '5px' }}>إختر منارتك</label>
             <select
               value={signupForm.group}
               onChange={(e) => setSignupForm({ ...signupForm, group: e.target.value })}
@@ -511,17 +545,17 @@ export default function FirebaseCompetitionApp() {
         <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: '30px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
             <Calendar size={24} color="#4299e1" />
-            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px' }}>الورد اليومي</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px', margin: '0 0 0 10px' }}>الورد اليومي</h2>
           </div>
 
-          {error && error.includes('task') && (
+          {error && error.includes('ورد') && (
             <p style={{ ...styles.error, marginBottom: '15px' }}>{error}</p>
           )}
 
           {hasRecordedTaskToday() ? (
             <div style={{ background: '#f0fff4', border: '2px solid #9ae6b4', borderRadius: '8px', padding: '20px', textAlign: 'center' }}>
               <CheckCircle size={32} color="#48bb78" style={{ margin: '0 auto 10px' }} />
-              <p style={{ color: '#22543d', fontWeight: '600' }}>تم تسجيل الورد، بارك اللّه بك</p>
+              <p style={{ color: '#22543d', fontWeight: '600', margin: 0 }}>تم تسجيل الورد، بارك اللّه بك</p>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
@@ -533,7 +567,7 @@ export default function FirebaseCompetitionApp() {
               >
                 <CheckCircle size={32} style={{ marginBottom: '10px' }} />
                 <span>أتممت الورد</span>
-                <span style={{ fontSize: '12px', marginTop: '5px' }}>+{TASK_POINTS.completed} نقاط </span>
+                <span style={{ fontSize: '12px', marginTop: '5px' }}>+{TASK_POINTS.completed} نقاط</span>
               </button>
 
               <button
@@ -544,7 +578,7 @@ export default function FirebaseCompetitionApp() {
               >
                 <Clock size={32} style={{ marginBottom: '10px' }} />
                 <span>بدأت الورد لكن لم أنهه</span>
-                <span style={{ fontSize: '12px', marginTop: '5px' }}>+{TASK_POINTS.started} نقاط </span>
+                <span style={{ fontSize: '12px', marginTop: '5px' }}>+{TASK_POINTS.started} نقاط</span>
               </button>
 
               <button
@@ -555,7 +589,7 @@ export default function FirebaseCompetitionApp() {
               >
                 <XCircle size={32} style={{ marginBottom: '10px' }} />
                 <span>لم أبدأ الورد</span>
-                <span style={{ fontSize: '12px', marginTop: '5px' }}>{TASK_POINTS.notStarted} نقاط </span>
+                <span style={{ fontSize: '12px', marginTop: '5px' }}>{TASK_POINTS.notStarted} نقاط</span>
               </button>
             </div>
           )}
@@ -564,17 +598,17 @@ export default function FirebaseCompetitionApp() {
         <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: '30px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
             <Users size={24} color="#9f7aea" />
-            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px' }}>اللقاء الاسبوعي</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px', margin: '0 0 0 10px' }}>اللقاء الأسبوعي</h2>
           </div>
 
-          {error && error.includes('meeting') && (
+          {error && error.includes('اللقاء') && (
             <p style={{ ...styles.error, marginBottom: '15px' }}>{error}</p>
           )}
 
           {hasRecordedMeetingThisWeek() ? (
             <div style={{ background: '#f0fff4', border: '2px solid #9ae6b4', borderRadius: '8px', padding: '20px', textAlign: 'center' }}>
               <CheckCircle size={32} color="#48bb78" style={{ margin: '0 auto 10px' }} />
-              <p style={{ color: '#22543d', fontWeight: '600' }}>تم تسجيل اللقاء الاسبوعي، جزاك اللّه خيرًا</p>
+              <p style={{ color: '#22543d', fontWeight: '600', margin: 0 }}>تم تسجيل اللقاء الأسبوعي، جزاك اللّه خيرًا</p>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
@@ -586,7 +620,7 @@ export default function FirebaseCompetitionApp() {
               >
                 <CheckCircle size={32} style={{ marginBottom: '10px' }} />
                 <span>شاركت باللقاء الأسبوعي</span>
-                <span style={{ fontSize: '12px', marginTop: '5px' }}>+{MEETING_POINTS.joined} نقاط </span>
+                <span style={{ fontSize: '12px', marginTop: '5px' }}>+{MEETING_POINTS.joined} نقاط</span>
               </button>
 
               <button
@@ -597,7 +631,7 @@ export default function FirebaseCompetitionApp() {
               >
                 <XCircle size={32} style={{ marginBottom: '10px' }} />
                 <span>لم أشارك باللقاء الأسبوعي</span>
-                <span style={{ fontSize: '12px', marginTop: '5px' }}>{MEETING_POINTS.missed} نقاط </span>
+                <span style={{ fontSize: '12px', marginTop: '5px' }}>{MEETING_POINTS.missed} نقاط</span>
               </button>
             </div>
           )}
@@ -605,74 +639,117 @@ export default function FirebaseCompetitionApp() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-              <Trophy size={24} color="#f59e0b" />
-              <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px' }}>لوحة المتصدرين</h2>
-            </div>
+  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+    <Trophy size={24} color="#f59e0b" />
+    <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px', margin: '0 0 0 10px' }}>لوحة المتصدرين</h2>
+  </div>
+  <p style={{ fontSize: '14px', color: '#718096', marginBottom: '15px', margin: '0 0 15px 0' }}>
+    ترتيب حسب متوسط النقاط لكل عضو
+  </p>
 
+  <div>
+    {getGroupScores().map(({ group, total, taskPoints, meetingPoints, members, average, rank }) => (
+      <div
+        key={group}
+        style={{
+          ...styles.leaderboardItem,
+          background: group === currentUser.group ? '#ebf8ff' : '#f7fafc',
+          border: group === currentUser.group ? '2px solid #4299e1' : 'none',
+          flexDirection: 'column',
+          alignItems: 'stretch'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <span style={{
+              fontWeight: 'bold',
+              marginRight: '15px',
+              color: rank === 1 ? '#f59e0b' : rank === 2 ? '#a0aec0' : rank === 3 ? '#ed8936' : '#718096',
+              fontSize: rank <= 3 ? '20px' : '16px'
+            }}>
+              #{rank}
+            </span>
             <div>
-              {getGroupScores().map(({ group, score, rank }) => (
-                <div
-                  key={group}
-                  style={{
-                    ...styles.leaderboardItem,
-                    background: group === currentUser.group ? '#ebf8ff' : '#f7fafc',
-                    border: group === currentUser.group ? '2px solid #4299e1' : 'none'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{
-                      fontWeight: 'bold',
-                      marginRight: '15px',
-                      color: rank === 1 ? '#f59e0b' : rank === 2 ? '#a0aec0' : rank === 3 ? '#ed8936' : '#718096',
-                      fontSize: rank <= 3 ? '20px' : '16px'
-                    }}>
-                      #{rank}
-                    </span>
-                    <span style={{ fontWeight: '600' }}>{group}</span>
-                  </div>
-                  <span style={{ fontWeight: 'bold', color: '#4299e1' }}>{score} نقاط </span>
-                </div>
-              ))}
+              <div style={{ fontWeight: '600' }}>{group}</div>
+              <div style={{ fontSize: '12px', color: '#718096' }}>
+                {members} عضو
+              </div>
             </div>
           </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontWeight: 'bold', color: '#4299e1', fontSize: '18px' }}>{average}</div>
+            <div style={{ fontSize: '12px', color: '#718096' }}>متوسط/عضو</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+          <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: '#f0f9ff', borderRadius: '6px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0284c7' }}>{taskPoints}</div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>نقاط الورد</div>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: '#f0fdf4', borderRadius: '6px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#16a34a' }}>{meetingPoints}</div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>نقاط اللقاءات</div>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: '#faf5ff', borderRadius: '6px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#9333ea' }}>{total}</div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>المجموع</div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 
           <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-              <Users size={24} color="#48bb78" />
-              <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px' }}>{currentUser.group}</h2>
-            </div>
+  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+    <Users size={24} color="#48bb78" />
+    <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '10px', margin: '0 0 0 10px' }}>{currentUser.group}</h2>
+  </div>
 
-            <div>
-              {getGroupMemberScores().length > 0 ? (
-                getGroupMemberScores().map((member, index) => (
-                  <div
-                    key={member.username}
-                    style={{
-                      ...styles.leaderboardItem,
-                      background: member.username === currentUser.username ? '#f0fff4' : '#f7fafc',
-                      border: member.username === currentUser.username ? '2px solid #48bb78' : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{
-                        fontWeight: 'bold',
-                        marginRight: '15px',
-                        color: index === 0 ? '#f59e0b' : index === 1 ? '#a0aec0' : index === 2 ? '#ed8936' : '#718096',
-                        fontSize: index <= 2 ? '20px' : '16px'
-                      }}>
-                        #{index + 1}
-                      </span>
-                      <span style={{ fontWeight: '600' }}>{member.username}</span>
-                    </div>
-                    <span style={{ fontWeight: 'bold', color: '#48bb78' }}> {member.points} نقاط </span>
-                  </div>
-                ))
-              ) : (
-                <p style={{ color: '#718096', textAlign: 'center', padding: '20px' }}>No members in this group yet</p>
-              )}
+  <div>
+    {getGroupMemberScores().length > 0 ? (
+      getGroupMemberScores().map((member, index) => (
+        <div
+          key={member.username}
+          style={{
+            ...styles.leaderboardItem,
+            background: member.username === currentUser.username ? '#f0fff4' : '#f7fafc',
+            border: member.username === currentUser.username ? '2px solid #48bb78' : 'none',
+            flexDirection: 'column',
+            alignItems: 'stretch'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{
+                fontWeight: 'bold',
+                marginRight: '15px',
+                color: index === 0 ? '#f59e0b' : index === 1 ? '#a0aec0' : index === 2 ? '#ed8936' : '#718096',
+                fontSize: index <= 2 ? '20px' : '16px'
+              }}>
+                #{index + 1}
+              </span>
+              <span style={{ fontWeight: '600' }}>{member.username}</span>
+            </div>
+            <span style={{ fontWeight: 'bold', color: '#48bb78', fontSize: '18px' }}>{member.points}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+            <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: '#f0f9ff', borderRadius: '6px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0284c7' }}>{member.taskPoints}</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>نقاط الورد</div>
+            </div>
+            <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: '#f0fdf4', borderRadius: '6px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#16a34a' }}>{member.meetingPoints}</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>نقاط اللقاءات</div>
             </div>
           </div>
+        </div>
+      ))
+    ) : (
+      <p style={{ color: '#718096', textAlign: 'center', padding: '20px', margin: 0 }}>لا يوجد أعضاء في هذه المنارة بعد</p>
+    )}
+  </div>
+</div>
         </div>
       </div>
     </div>
